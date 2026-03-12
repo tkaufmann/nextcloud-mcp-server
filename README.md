@@ -123,6 +123,13 @@ The server supports four authentication modes:
 - Optional offline access for background operations (`ENABLE_MULTI_USER_BASIC_AUTH=true`)
 - Best for: Multi-user setups without OAuth infrastructure
 
+**Multi-User (Bearer Token):**
+- Pre-configured tokens map to Nextcloud accounts with per-token scopes
+- Multiple clients can share one NC account with different permissions
+- Clients authenticate with `Authorization: Bearer <token>`
+- Works alongside BasicAuth (both modes active simultaneously)
+- Best for: Multiple LLM clients on the same NC account with different access levels
+
 **Multi-User (OAuth):**
 - Each MCP client authenticates separately with their own Nextcloud account
 - Per-user scopes and permissions (clients only see tools they're authorized for)

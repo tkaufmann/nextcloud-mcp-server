@@ -140,6 +140,57 @@ Basic Authentication uses username and password credentials directly.
 - [Configuration](configuration.md#basic-authentication-legacy) - BasicAuth environment variables
 - [Running the Server](running.md#basicauth-mode-legacy) - BasicAuth examples
 
+## Bearer Token Authentication
+
+Bearer tokens allow multiple clients to share a single Nextcloud account with different scope restrictions. This is useful when several LLM agents (e.g. Claude and n8n) need access to the same Nextcloud user but with different permissions.
+
+### How It Works
+
+1. Define tokens in the server's `.env` file (see below)
+2. Clients send `Authorization: Bearer <token>` with each request
+3. Server maps the token to NC credentials and optional scopes
+4. Invalid tokens receive a `401` JSON error response
+
+Bearer tokens and BasicAuth work in parallel — the middleware checks Bearer first, then BasicAuth.
+
+### Configuration
+
+```env
+ENABLE_MULTI_USER_BASIC_AUTH=true
+
+# Token for Claude: files + notes, read/write
+NEXTCLOUD_MCP_TOKEN_CLAUDE=<64-char-hex-secret>
+NEXTCLOUD_MCP_TOKEN_CLAUDE_NC_USER=tim
+NEXTCLOUD_MCP_TOKEN_CLAUDE_NC_PASSWORD=<nc-app-password>
+NEXTCLOUD_MCP_TOKEN_CLAUDE_SCOPES=files:read,files:write,notes:read
+
+# Token for n8n: calendar only
+NEXTCLOUD_MCP_TOKEN_N8N=<64-char-hex-secret>
+NEXTCLOUD_MCP_TOKEN_N8N_NC_USER=tim
+NEXTCLOUD_MCP_TOKEN_N8N_NC_PASSWORD=<nc-app-password>
+NEXTCLOUD_MCP_TOKEN_N8N_SCOPES=calendar:read,calendar:write
+
+# Token without _SCOPES → full access
+NEXTCLOUD_MCP_TOKEN_ADMIN=<64-char-hex-secret>
+NEXTCLOUD_MCP_TOKEN_ADMIN_NC_USER=admin
+NEXTCLOUD_MCP_TOKEN_ADMIN_NC_PASSWORD=<nc-app-password>
+```
+
+Generate a token secret: `python -c "import secrets; print(secrets.token_hex(32))"`
+
+### Client Usage
+
+```bash
+# MCP client connection
+claude mcp add -t http \
+  --header "Authorization: Bearer <token>" \
+  https://mcp-server:port/mcp
+```
+
+### See Also
+- [Configuration](configuration.md) - All environment variables
+- [Running the Server](running.md) - Startup examples
+
 ## Hybrid Authentication (Multi-User BasicAuth + OAuth)
 
 When running in multi-user BasicAuth mode with `ENABLE_OFFLINE_ACCESS=true`, the server operates in **hybrid authentication mode**. This provides the simplicity of BasicAuth for normal operations with the security of OAuth for administrative functions.
