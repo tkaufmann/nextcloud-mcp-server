@@ -100,6 +100,7 @@ from nextcloud_mcp_server.config import (
     get_basic_auth_scopes,
     get_document_processor_config,
     get_settings,
+    resolve_token,
 )
 from nextcloud_mcp_server.config_validators import (
     AuthMode,
@@ -419,15 +420,36 @@ def get_smithery_session_config() -> dict | None:
     return _smithery_session_config.get()
 
 
+async def _send_error_response(send: Send, status: int, message: str) -> None:
+    """Send a JSON error response via ASGI."""
+    body = json.dumps({"error": message}).encode("utf-8")
+    await send(
+        {
+            "type": "http.response.start",
+            "status": status,
+            "headers": [
+                [b"content-type", b"application/json"],
+                [b"content-length", str(len(body)).encode()],
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})
+
+
 class BasicAuthMiddleware:
-    """Middleware to extract BasicAuth credentials from Authorization header.
+    """Middleware for Bearer token and BasicAuth credential extraction.
 
-    For multi-user BasicAuth pass-through mode, this middleware extracts
-    username/password from the Authorization: Basic header and stores them
-    in the request state for use by the context layer.
+    Supports two authentication modes (checked in order):
 
-    The credentials are NOT stored persistently - they are passed through
-    directly to Nextcloud APIs for each request (stateless).
+    1. Bearer token: Looks up the token via resolve_token(), maps it to
+       NC credentials + optional scopes. Invalid tokens get a 401 response.
+
+    2. BasicAuth pass-through: Extracts username/password from the
+       Authorization: Basic header. Scopes are read from
+       BASIC_AUTH_SCOPES_<USERNAME> environment variables.
+
+    Both modes store NC credentials in scope["state"]["basic_auth"]
+    so the downstream context layer can use them transparently.
     """
 
     def __init__(self, app: ASGIApp):
@@ -441,6 +463,41 @@ class BasicAuthMiddleware:
             headers = dict(scope.get("headers", []))
             auth_header = headers.get(b"authorization", b"")
 
+            # Bearer token authentication (token-layer)
+            if auth_header.startswith(b"Bearer "):
+                token_secret = auth_header[7:].decode("utf-8").strip()
+                token_config = resolve_token(token_secret)
+                if token_config is None:
+                    await _send_error_response(send, 401, "Invalid bearer token")
+                    return
+
+                # Map token to NC credentials (same path as BasicAuth)
+                scope.setdefault("state", {})
+                scope["state"]["basic_auth"] = {
+                    "username": token_config.nc_user,
+                    "password": token_config.nc_password,
+                }
+                logger.debug(
+                    "Bearer token '%s' mapped to NC user: %s",
+                    token_config.name,
+                    token_config.nc_user,
+                )
+
+                # Inject scopes if configured (same mechanism as BasicAuth scopes)
+                if token_config.scopes is not None:
+                    await self._dispatch_with_scopes(
+                        scope,
+                        receive,
+                        send,
+                        scopes=token_config.scopes,
+                        client_id=f"token:{token_config.name}",
+                    )
+                    return
+
+                await self.app(scope, receive, send)
+                return
+
+            # BasicAuth pass-through
             if auth_header.startswith(b"Basic "):
                 try:
                     # Decode base64(username:password)
@@ -463,34 +520,48 @@ class BasicAuthMiddleware:
                     # list_tools_filtered() to work in BasicAuth mode
                     configured_scopes = get_basic_auth_scopes(username)
                     if configured_scopes is not None:
-                        from mcp.server.auth.middleware.auth_context import (  # noqa: PLC0415
-                            auth_context_var,
-                        )
-                        from mcp.server.auth.middleware.bearer_auth import (  # noqa: PLC0415
-                            AuthenticatedUser,
-                        )
-                        from mcp.server.auth.provider import (  # noqa: PLC0415
-                            AccessToken,
-                        )
-
-                        synthetic_token = AccessToken(
-                            token="basic-auth-synthetic",
-                            client_id=f"basic-auth:{username}",
+                        await self._dispatch_with_scopes(
+                            scope,
+                            receive,
+                            send,
                             scopes=configured_scopes,
+                            client_id=f"basic-auth:{username}",
                         )
-                        ctx_token = auth_context_var.set(
-                            AuthenticatedUser(synthetic_token)
-                        )
-                        try:
-                            await self.app(scope, receive, send)
-                        finally:
-                            auth_context_var.reset(ctx_token)
                         return
 
                 except Exception as e:
                     logger.warning(f"Failed to extract BasicAuth credentials: {e}")
 
         await self.app(scope, receive, send)
+
+    async def _dispatch_with_scopes(
+        self,
+        scope: StarletteScope,
+        receive: Receive,
+        send: Send,
+        *,
+        scopes: list[str],
+        client_id: str,
+    ) -> None:
+        """Dispatch request with a synthetic AccessToken for scope enforcement."""
+        from mcp.server.auth.middleware.auth_context import (  # noqa: PLC0415
+            auth_context_var,
+        )
+        from mcp.server.auth.middleware.bearer_auth import (  # noqa: PLC0415
+            AuthenticatedUser,
+        )
+        from mcp.server.auth.provider import AccessToken  # noqa: PLC0415
+
+        synthetic_token = AccessToken(
+            token="synthetic-scoped",
+            client_id=client_id,
+            scopes=scopes,
+        )
+        ctx_token = auth_context_var.set(AuthenticatedUser(synthetic_token))
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            auth_context_var.reset(ctx_token)
 
 
 class SmitheryConfigMiddleware:
