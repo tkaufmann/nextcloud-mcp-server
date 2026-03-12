@@ -1,9 +1,10 @@
+import hmac
 import logging
 import logging.config
 import os
 import socket
 import ssl
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -626,6 +627,113 @@ def get_basic_auth_scopes(username: str) -> list[str] | None:
     if raw is None:
         return None
     return [s.strip() for s in raw.split(",") if s.strip()]
+
+
+@dataclass
+class TokenConfig:
+    """Configuration for a Bearer token mapped to a Nextcloud account.
+
+    Each token maps a client (e.g. "CLAUDE", "N8N") to a Nextcloud user
+    with optional scope restrictions. Clients authenticate with the hex
+    secret; the server uses nc_user/nc_password for Nextcloud API calls.
+    """
+
+    name: str  # Logical name, e.g. "CLAUDE"
+    secret: str  # 64-char hex token
+    nc_user: str  # Nextcloud username
+    nc_password: str  # Nextcloud app-password
+    scopes: list[str] | None = field(default=None)  # None = full access
+
+
+def parse_token_configs() -> dict[str, TokenConfig]:
+    """Parse NEXTCLOUD_MCP_TOKEN_* variables from the environment.
+
+    Grouping logic:
+      - NEXTCLOUD_MCP_TOKEN_<NAME>          → secret (required)
+      - NEXTCLOUD_MCP_TOKEN_<NAME>_NC_USER  → nc_user (required)
+      - NEXTCLOUD_MCP_TOKEN_<NAME>_NC_PASSWORD → nc_password (required)
+      - NEXTCLOUD_MCP_TOKEN_<NAME>_SCOPES   → comma-separated scopes (optional)
+
+    Returns:
+        dict mapping logical name (e.g. "CLAUDE") to TokenConfig.
+    """
+    logger = logging.getLogger(__name__)
+    prefix = "NEXTCLOUD_MCP_TOKEN_"
+    suffixes = ("_NC_USER", "_NC_PASSWORD", "_SCOPES")
+
+    # Collect base token names by finding keys that match the prefix
+    # but don't end with a known suffix
+    names: set[str] = set()
+    for key in os.environ:
+        if not key.startswith(prefix):
+            continue
+        remainder = key[len(prefix) :]
+        if any(remainder.endswith(s) for s in suffixes):
+            # Strip suffix to get the name
+            for s in suffixes:
+                if remainder.endswith(s):
+                    names.add(remainder[: -len(s)])
+                    break
+        else:
+            names.add(remainder)
+
+    configs: dict[str, TokenConfig] = {}
+    for name in sorted(names):
+        secret = os.getenv(f"{prefix}{name}", "").strip()
+        nc_user = os.getenv(f"{prefix}{name}_NC_USER", "").strip()
+        nc_password = os.getenv(f"{prefix}{name}_NC_PASSWORD", "").strip()
+        raw_scopes = os.getenv(f"{prefix}{name}_SCOPES")
+
+        if not secret or not nc_user or not nc_password:
+            logger.warning(
+                "Token '%s' skipped: secret, NC_USER and NC_PASSWORD are all required",
+                name,
+            )
+            continue
+
+        scopes: list[str] | None = None
+        if raw_scopes is not None:
+            scopes = [s.strip() for s in raw_scopes.split(",") if s.strip()]
+
+        configs[name] = TokenConfig(
+            name=name,
+            secret=secret,
+            nc_user=nc_user,
+            nc_password=nc_password,
+            scopes=scopes,
+        )
+        logger.info(
+            "Token '%s' configured for NC user '%s' (scopes: %s)",
+            name,
+            nc_user,
+            ", ".join(scopes) if scopes else "full access",
+        )
+
+    return configs
+
+
+# Module-level cache — parsed once on first import
+_token_configs: dict[str, TokenConfig] | None = None
+
+
+def _get_token_configs() -> dict[str, TokenConfig]:
+    """Return cached token configurations (parsed once)."""
+    global _token_configs  # noqa: PLW0603
+    if _token_configs is None:
+        _token_configs = parse_token_configs()
+    return _token_configs
+
+
+def resolve_token(secret: str) -> TokenConfig | None:
+    """Look up a TokenConfig by its secret using constant-time comparison.
+
+    Returns:
+        Matching TokenConfig, or None if no token matches.
+    """
+    for config in _get_token_configs().values():
+        if hmac.compare_digest(config.secret, secret):
+            return config
+    return None
 
 
 def get_nextcloud_ssl_verify() -> bool | ssl.SSLContext:
