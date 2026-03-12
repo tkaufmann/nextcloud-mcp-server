@@ -41,7 +41,7 @@ def test_parse_token_configs_valid():
 
     n8n = configs["N8N"]
     assert n8n.secret == "b" * 64
-    assert n8n.scopes is None  # No _SCOPES → full access
+    assert n8n.scopes == []  # No _SCOPES → no access (deny by default)
 
 
 @pytest.mark.unit

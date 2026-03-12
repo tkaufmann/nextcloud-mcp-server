@@ -642,7 +642,9 @@ class TokenConfig:
     secret: str  # 64-char hex token
     nc_user: str  # Nextcloud username
     nc_password: str  # Nextcloud app-password
-    scopes: list[str] | None = field(default=None)  # None = full access
+    scopes: list[str] = field(
+        default_factory=list
+    )  # Empty = no access (deny by default)
 
 
 def parse_token_configs() -> dict[str, TokenConfig]:
@@ -691,9 +693,17 @@ def parse_token_configs() -> dict[str, TokenConfig]:
             )
             continue
 
-        scopes: list[str] | None = None
+        scopes: list[str] = []
         if raw_scopes is not None:
             scopes = [s.strip() for s in raw_scopes.split(",") if s.strip()]
+
+        if not scopes:
+            logger.warning(
+                "Token '%s' has no scopes configured — no tools will be accessible. "
+                "Add NEXTCLOUD_MCP_TOKEN_%s_SCOPES to grant permissions.",
+                name,
+                name,
+            )
 
         configs[name] = TokenConfig(
             name=name,
@@ -706,7 +716,7 @@ def parse_token_configs() -> dict[str, TokenConfig]:
             "Token '%s' configured for NC user '%s' (scopes: %s)",
             name,
             nc_user,
-            ", ".join(scopes) if scopes else "full access",
+            ", ".join(scopes) if scopes else "none",
         )
 
     return configs

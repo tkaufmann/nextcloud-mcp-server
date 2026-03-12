@@ -170,10 +170,8 @@ NEXTCLOUD_MCP_TOKEN_N8N_NC_USER=tim
 NEXTCLOUD_MCP_TOKEN_N8N_NC_PASSWORD=<nc-app-password>
 NEXTCLOUD_MCP_TOKEN_N8N_SCOPES=calendar:read,calendar:write
 
-# Token without _SCOPES → full access
-NEXTCLOUD_MCP_TOKEN_ADMIN=<64-char-hex-secret>
-NEXTCLOUD_MCP_TOKEN_ADMIN_NC_USER=admin
-NEXTCLOUD_MCP_TOKEN_ADMIN_NC_PASSWORD=<nc-app-password>
+# Token ohne _SCOPES → kein Zugriff (deny by default)
+# Immer explizit Scopes angeben!
 ```
 
 Generate a token secret: `python -c "import secrets; print(secrets.token_hex(32))"`

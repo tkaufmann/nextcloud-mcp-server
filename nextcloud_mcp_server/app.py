@@ -483,18 +483,15 @@ class BasicAuthMiddleware:
                     token_config.nc_user,
                 )
 
-                # Inject scopes if configured (same mechanism as BasicAuth scopes)
-                if token_config.scopes is not None:
-                    await self._dispatch_with_scopes(
-                        scope,
-                        receive,
-                        send,
-                        scopes=token_config.scopes,
-                        client_id=f"token:{token_config.name}",
-                    )
-                    return
-
-                await self.app(scope, receive, send)
+                # Tokens always enforce scopes (deny by default:
+                # empty list = no tools visible)
+                await self._dispatch_with_scopes(
+                    scope,
+                    receive,
+                    send,
+                    scopes=token_config.scopes,
+                    client_id=f"token:{token_config.name}",
+                )
                 return
 
             # BasicAuth pass-through
