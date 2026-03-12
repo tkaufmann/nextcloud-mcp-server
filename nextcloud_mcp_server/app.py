@@ -2274,10 +2274,16 @@ def get_app(transport: str = "streamable-http", enabled_apps: list[str] | None =
     # Add Protected Resource Metadata (PRM) endpoint for OAuth mode
     routes = []
 
-    # Add health check routes (available in both OAuth and BasicAuth modes)
+    # Scope discovery: lists all scopes from @require_scopes decorators
+    def scopes_list(request):
+        """Returns all supported scopes, discovered from tool decorators."""
+        return JSONResponse({"scopes": request.app.state.supported_scopes})
+
+    # Add health check and scope discovery routes
     routes.append(Route("/health/live", health_live, methods=["GET"]))
     routes.append(Route("/health/ready", health_ready, methods=["GET"]))
-    logger.info("Health check endpoints enabled: /health/live, /health/ready")
+    routes.append(Route("/scopes", scopes_list, methods=["GET"]))
+    logger.info("Health check endpoints enabled: /health/live, /health/ready, /scopes")
 
     # Add test webhook endpoint (for development/testing)
     routes.append(
@@ -2627,9 +2633,8 @@ def get_app(transport: str = "streamable-http", enabled_apps: list[str] | None =
         "Routes: /user/* with SessionAuth, /mcp with FastMCP OAuth Bearer tokens"
     )
 
-    # Store supported scopes on app.state for AS metadata endpoint (ADR-023)
-    if oauth_enabled:
-        app.state.supported_scopes = discover_all_scopes(mcp)
+    # Supported scopes from @require_scopes decorators (used by /scopes and OAuth metadata)
+    app.state.supported_scopes = discover_all_scopes(mcp)
 
     # Add debugging middleware to log Authorization headers and client capabilities
     @app.middleware("http")
