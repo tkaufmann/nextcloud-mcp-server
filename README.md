@@ -127,7 +127,9 @@ The server supports four authentication modes:
 - Pre-configured tokens map to Nextcloud accounts with per-token scopes
 - Multiple clients can share one NC account with different permissions
 - Clients authenticate with `Authorization: Bearer <token>`
+- Tokens without scopes have no access (deny by default)
 - Works alongside BasicAuth (both modes active simultaneously)
+- Available scopes: `files`, `calendar`, `todo`, `contacts`, `notes`, `deck`, `cookbook`, `tables`, `sharing`, `news`, `semantic` (each with `:read`/`:write`) — see [Authentication docs](docs/authentication.md#available-scopes)
 - Best for: Multiple LLM clients on the same NC account with different access levels
 
 **Multi-User (OAuth):**

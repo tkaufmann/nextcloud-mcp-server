@@ -176,6 +176,31 @@ NEXTCLOUD_MCP_TOKEN_N8N_SCOPES=calendar:read,calendar:write
 
 Generate a token secret: `python -c "import secrets; print(secrets.token_hex(32))"`
 
+### Available Scopes
+
+| Scope | Area |
+|-------|------|
+| `files:read` | List, search, read files (WebDAV) |
+| `files:write` | Create, move, copy, delete files |
+| `calendar:read` | List calendars and events |
+| `calendar:write` | Create, update, delete events |
+| `todo:read` | List tasks (requires `calendar:read`) |
+| `todo:write` | Create, update, delete tasks (requires `calendar:read`) |
+| `contacts:read` | List, search contacts |
+| `contacts:write` | Create, update, delete contacts |
+| `notes:read` | List, read notes |
+| `notes:write` | Create, update, delete notes |
+| `deck:read` | List boards, stacks, cards |
+| `deck:write` | Create, update, delete boards/stacks/cards |
+| `cookbook:read` | List, search, read recipes |
+| `cookbook:write` | Create, update, delete recipes |
+| `tables:read` | List, read tables |
+| `tables:write` | Create, update, delete tables |
+| `sharing:read` | List shares |
+| `sharing:write` | Create, update, delete shares |
+| `news:read` | List feeds and articles |
+| `semantic:read` | Semantic search |
+
 ### Client Usage
 
 ```bash
