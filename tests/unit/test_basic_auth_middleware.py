@@ -109,14 +109,14 @@ async def test_basic_auth_middleware_missing_authorization_header():
 
 @pytest.mark.unit
 async def test_basic_auth_middleware_wrong_auth_scheme():
-    """Test that middleware ignores non-Basic auth schemes."""
+    """Test that middleware ignores non-Basic/non-Bearer auth schemes."""
     # Arrange
     mock_app = MockApp()
     middleware = BasicAuthMiddleware(mock_app)
 
     scope = {
         "type": "http",
-        "headers": [(b"authorization", b"Bearer some_token")],
+        "headers": [(b"authorization", b"Digest username=user")],
     }
 
     # Act
