@@ -24,9 +24,7 @@ def validate_external_url(url: str) -> str:
     """
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
-        raise ValueError(
-            f"URL scheme must be http or https, got {parsed.scheme!r}"
-        )
+        raise ValueError(f"URL scheme must be http or https, got {parsed.scheme!r}")
     if parsed.hostname:
         try:
             ip = ipaddress.ip_address(parsed.hostname)

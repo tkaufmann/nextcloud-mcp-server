@@ -2,11 +2,11 @@
 
 import logging
 import mimetypes
-import defusedxml.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import unquote
 
+import defusedxml.ElementTree as ET
 from httpx import HTTPStatusError
 
 from nextcloud_mcp_server.utils.path import sanitize_webdav_path
@@ -30,7 +30,9 @@ class WebDAVClient(BaseNextcloudClient):
         else:
             path_with_slash = path
 
-        webdav_path = f"{self._get_webdav_base_path()}/{sanitize_webdav_path(path_with_slash)}"
+        webdav_path = (
+            f"{self._get_webdav_base_path()}/{sanitize_webdav_path(path_with_slash)}"
+        )
         logger.debug(f"Deleting WebDAV resource: {webdav_path}")
 
         headers = {"OCS-APIRequest": "true"}
@@ -436,7 +438,9 @@ class WebDAVClient(BaseNextcloudClient):
         Returns:
             Dict with status_code and optional message
         """
-        source_webdav_path = f"{self._get_webdav_base_path()}/{sanitize_webdav_path(source_path)}"
+        source_webdav_path = (
+            f"{self._get_webdav_base_path()}/{sanitize_webdav_path(source_path)}"
+        )
         destination_webdav_path = (
             f"{self._get_webdav_base_path()}/{sanitize_webdav_path(destination_path)}"
         )
@@ -517,7 +521,9 @@ class WebDAVClient(BaseNextcloudClient):
         Returns:
             Dict with status_code and optional message
         """
-        source_webdav_path = f"{self._get_webdav_base_path()}/{sanitize_webdav_path(source_path)}"
+        source_webdav_path = (
+            f"{self._get_webdav_base_path()}/{sanitize_webdav_path(source_path)}"
+        )
         destination_webdav_path = (
             f"{self._get_webdav_base_path()}/{sanitize_webdav_path(destination_path)}"
         )

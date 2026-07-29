@@ -13,9 +13,9 @@ from httpx import Auth
 from icalendar import Alarm, Calendar, vDDDTypes, vRecur
 from icalendar import Event as ICalEvent
 from icalendar import Todo as ICalTodo
+from lxml import etree  # type: ignore[import-untyped]
 
 from nextcloud_mcp_server.utils.xml import escape_xml
-from lxml import etree  # type: ignore[import-untyped]
 
 from ..config import get_nextcloud_ssl_verify
 
