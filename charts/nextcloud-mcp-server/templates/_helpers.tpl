@@ -198,9 +198,11 @@ Return the MCP server port
 
 {{/*
 Return the image tag (always uses chart appVersion)
+PEP 440 local versions such as "0.65.0+tk.1" are valid appVersions but invalid
+OCI tags, because "+" is not permitted there. It is replaced by "-".
 */}}
 {{- define "nextcloud-mcp-server.imageTag" -}}
-{{- .Chart.AppVersion }}
+{{- .Chart.AppVersion | replace "+" "-" }}
 {{- end }}
 
 {{/*
