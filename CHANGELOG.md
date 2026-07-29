@@ -5,6 +5,30 @@ All notable changes to the Nextcloud MCP Server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://peps.python.org/pep-0440/).
 
+## v0.65.0+tk.1 (2026-07-30)
+
+### Feat
+
+- **mcp**: add Bearer token authentication to middleware
+- **mcp**: parse token configuration from environment
+- **mcp**: add scope checks to MCP resource handlers
+- **mcp**: enable tool filtering for BasicAuth scopes
+- **mcp**: inject synthetic AccessToken for scoped BasicAuth users
+- **mcp**: parse BASIC_AUTH_SCOPES from environment
+
+### Fix
+
+- **docker**: include full package directory in build context
+- **mcp**: update lockfile for defusedxml dependency
+- **mcp**: add SSRF protection for user-provided URLs
+- **mcp**: secure SSL verification defaults
+- **mcp**: use sharing:read scope for read-only sharing tools
+- **mcp**: run containers as non-root user
+- **mcp**: prevent open redirect via next parameter
+- **mcp**: use defusedxml to prevent XML entity expansion
+- **mcp**: add path traversal protection for WebDAV paths
+- **mcp**: escape XML-interpolated values to prevent injection
+
 ## v0.65.0 (2026-03-03)
 
 ### Feat
